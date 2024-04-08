@@ -253,7 +253,7 @@ class TensorRTWorker(BaseModelWorker):
                 "error_code": ErrorCode.CUDA_OUT_OF_MEMORY,
             }
             yield json.dumps(ret).encode() + b"\0"
-        except (ValueError, RuntimeError) as e:
+        except Exception as e:
             ret = {
                 "text": f"{SERVER_ERROR_MSG}\n\n({e})",
                 "error_code": ErrorCode.INTERNAL_ERROR,
@@ -281,7 +281,6 @@ def create_background_tasks():
     background_tasks.add_task(release_worker_semaphore)
     return background_tasks
 
-
 @app.post("/worker_generate_stream")
 async def api_generate_stream(request: Request):
     params = await request.json()
@@ -295,8 +294,10 @@ async def api_generate_stream(request: Request):
 async def api_generate(request: Request):
     params = await request.json()
     await acquire_worker_semaphore()
-    output = await worker.generate(params)
-    release_worker_semaphore()
+    try:
+        output = await worker.generate(params)
+    finally:
+        release_worker_semaphore()
     return JSONResponse(output)
 
 
